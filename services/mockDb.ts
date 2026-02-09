@@ -1,4 +1,4 @@
-import { Product, CaseStudy, Lead, HeroConfig, FooterConfig } from '../types';
+import { Product, CaseStudy, Lead, HeroConfig } from '../types';
 
 // Initial Data
 const INITIAL_PRODUCTS: Product[] = [

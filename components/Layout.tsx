@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { IconAdmin } from './Icons';
 import { FloatingButtons } from './FloatingButtons';
 
@@ -8,8 +8,6 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const navigate = useNavigate();
-
   return (
     <div className="flex flex-col min-h-screen font-sans text-gray-800">
       {/* Navigation */}
