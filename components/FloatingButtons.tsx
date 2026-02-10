@@ -17,11 +17,6 @@ export const FloatingButtons: React.FC = () => {
   // Don't show on admin pages
   if (location.pathname.startsWith('/admin')) return null;
 
-  const scrollToForm = () => {
-    const form = document.getElementById('consultation-form');
-    if (form) form.scrollIntoView({ behavior: 'smooth' });
-  };
-
   const kakaoLink = "https://pf.kakao.com/_xlWgqG";
 
   return (
@@ -48,13 +43,13 @@ export const FloatingButtons: React.FC = () => {
           <IconKakao className="w-6 h-6 mr-2" />
           카톡 상담
         </a>
-        <button 
-          onClick={scrollToForm}
+        <a 
+          href="tel:15518891"
           className="flex-1 flex items-center justify-center bg-ktRed text-white font-bold text-lg"
         >
           <IconPhone className="w-6 h-6 mr-2" />
           상담 신청
-        </button>
+        </a>
       </div>
     </>
   );

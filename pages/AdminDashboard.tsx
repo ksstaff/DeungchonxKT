@@ -17,6 +17,12 @@ export const AdminDashboard: React.FC = () => {
   const [cases, setCases] = useState<CaseStudy[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
 
+  // Modal States
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [editingCase, setEditingCase] = useState<CaseStudy | null>(null);
+  const [isCaseModalOpen, setIsCaseModalOpen] = useState(false);
+
   // Auth Check
   useEffect(() => {
     if (!localStorage.getItem('admin_auth')) {
@@ -58,14 +64,16 @@ export const AdminDashboard: React.FC = () => {
         const url = await db.uploadImage(file);
         return url;
     } catch (error) {
-        alert('이미지 업로드 실패: ' + error);
+        alert('이미지 업로드 실패: ' + (error as any).message);
         return null;
     } finally {
         setIsUploading(false);
+        // Reset input value to allow uploading same file again if needed
+        e.target.value = '';
     }
   };
 
-  // --- Handlers ---
+  // --- Hero Handlers ---
   const saveHero = async () => {
     if (heroConfig) {
       await db.updateHeroConfig(heroConfig);
@@ -73,11 +81,81 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  // --- Product Handlers ---
+  const openProductModal = (product?: Product) => {
+    if (product) {
+        setEditingProduct({ ...product });
+    } else {
+        // New Product
+        setEditingProduct({
+            id: '',
+            name: '',
+            summary: '',
+            description: '',
+            image: ''
+        });
+    }
+    setIsProductModalOpen(true);
+  };
+
+  const saveProduct = async () => {
+    if (!editingProduct) return;
+    
+    // Validate
+    if (!editingProduct.name || !editingProduct.image) {
+        alert('상품명과 이미지는 필수입니다.');
+        return;
+    }
+
+    const p = { ...editingProduct };
+    // Generate ID if empty
+    if (!p.id) p.id = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
+
+    await db.saveProduct(p);
+    setIsProductModalOpen(false);
+    setEditingProduct(null);
+    fetchData();
+  };
+
   const deleteProduct = async (id: string) => {
     if(window.confirm('정말 삭제하시겠습니까?')) {
         await db.deleteProduct(id);
         fetchData();
     }
+  };
+
+  // --- Case Handlers ---
+  const openCaseModal = (item?: CaseStudy) => {
+    if (item) {
+        setEditingCase({ ...item });
+    } else {
+        setEditingCase({
+            id: '',
+            storeName: '',
+            region: '',
+            productUsed: '',
+            content: '',
+            image: ''
+        });
+    }
+    setIsCaseModalOpen(true);
+  };
+
+  const saveCase = async () => {
+    if (!editingCase) return;
+
+    if (!editingCase.storeName || !editingCase.image) {
+        alert('매장명과 이미지는 필수입니다.');
+        return;
+    }
+
+    const c = { ...editingCase };
+    if (!c.id) c.id = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
+
+    await db.saveCase(c);
+    setIsCaseModalOpen(false);
+    setEditingCase(null);
+    fetchData();
   };
 
   const deleteCase = async (id: string) => {
@@ -106,10 +184,10 @@ export const AdminDashboard: React.FC = () => {
         <aside className="w-full md:w-64 bg-white rounded-lg shadow-sm p-4 h-fit">
           <nav className="space-y-2">
             {[
+              { id: AdminTab.LEADS, label: '상담 신청 내역' },
               { id: AdminTab.HERO, label: '히어로 관리' },
               { id: AdminTab.PRODUCTS, label: '상품 관리' },
               { id: AdminTab.CASES, label: '도입사례 관리' },
-              { id: AdminTab.LEADS, label: '상담 신청 내역' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -133,12 +211,12 @@ export const AdminDashboard: React.FC = () => {
               <div className="flex justify-between items-center border-b pb-4">
                   <h2 className="text-2xl font-bold text-navy">히어로 섹션 관리</h2>
                   <button onClick={saveHero} className="bg-ktRed text-white px-6 py-2 rounded font-bold hover:bg-red-600 shadow-md">
-                    변경사항 저장하기 (동기화)
+                    변경사항 저장하기
                   </button>
               </div>
               
               <div>
-                <label className="block text-sm font-bold mb-2">헤드라인</label>
+                <label className="block text-sm font-bold mb-2">헤드라인 (줄바꿈 가능)</label>
                 <textarea 
                   className="w-full border rounded p-2" 
                   rows={3}
@@ -147,31 +225,24 @@ export const AdminDashboard: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold mb-2">메인 이미지 (URL 또는 업로드)</label>
-                <div className="flex gap-2 mb-2">
-                    <input 
-                      type="text" 
-                      className="w-full border rounded p-2 bg-gray-50" 
-                      value={heroConfig.imageUrl}
-                      readOnly
-                    />
-                </div>
-                <div className="flex items-center gap-2">
-                    <label className="cursor-pointer bg-gray-200 px-4 py-2 rounded hover:bg-gray-300 text-sm font-medium">
-                        이미지 업로드
+                <label className="block text-sm font-bold mb-2">메인 이미지</label>
+                <div className="flex items-center gap-4">
+                    {heroConfig.imageUrl && <img src={heroConfig.imageUrl} alt="Preview" className="h-32 object-cover rounded border" />}
+                    <label className="cursor-pointer bg-gray-200 px-4 py-2 rounded hover:bg-gray-300 text-sm font-medium h-fit flex items-center gap-2">
+                        {isUploading ? <IconSpinner className="w-4 h-4" /> : null}
+                        {isUploading ? '업로드 중...' : '이미지 변경'}
                         <input 
                             type="file" 
                             accept="image/*" 
                             className="hidden" 
+                            disabled={isUploading}
                             onChange={async (e) => {
                                 const url = await handleImageUpload(e);
                                 if (url) setHeroConfig({...heroConfig, imageUrl: url});
                             }}
                         />
                     </label>
-                    {isUploading && <span className="text-sm text-blue-500 animate-pulse">업로드 중...</span>}
                 </div>
-                {heroConfig.imageUrl && <img src={heroConfig.imageUrl} alt="Preview" className="h-40 object-cover rounded mt-2 border" />}
               </div>
               <div>
                 <label className="block text-sm font-bold mb-2">배지 문구</label>
@@ -206,22 +277,26 @@ export const AdminDashboard: React.FC = () => {
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-navy">상품 관리</h2>
-                <button className="bg-skyTeal text-white px-4 py-2 rounded text-sm hover:bg-deepTeal" onClick={() => alert("데모 버전: 수정/삭제 기능만 테스트 가능합니다.")}>+ 상품 추가</button>
+                <button 
+                    className="bg-skyTeal text-white px-4 py-2 rounded text-sm hover:bg-deepTeal font-bold"
+                    onClick={() => openProductModal()}
+                >
+                    + 상품 추가
+                </button>
               </div>
-              <p className="text-xs text-gray-500 mb-4">* 상품 수정 시 자동 저장 기능은 구현되어 있지 않으므로, 데모에서는 삭제 기능만 활성화됩니다.</p>
               <div className="grid gap-4">
                 {products.map(p => (
-                  <div key={p.id} className="border p-4 rounded flex items-center justify-between">
+                  <div key={p.id} className="border p-4 rounded flex items-center justify-between hover:bg-gray-50">
                     <div className="flex items-center gap-4">
-                      <img src={p.image} alt={p.name} className="w-16 h-16 object-cover rounded" />
+                      <img src={p.image} alt={p.name} className="w-16 h-16 object-cover rounded bg-gray-100" />
                       <div>
                         <h4 className="font-bold">{p.name}</h4>
                         <p className="text-sm text-gray-500 truncate w-64">{p.summary}</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
-                        <button className="text-gray-500 hover:text-navy" onClick={() => alert('이미지 교체 기능을 포함한 편집창이 열립니다.')}>수정</button>
-                        <button className="text-red-500 hover:text-red-700" onClick={() => deleteProduct(p.id)}>삭제</button>
+                        <button className="text-gray-500 hover:text-navy px-3 py-1 border rounded text-sm" onClick={() => openProductModal(p)}>수정</button>
+                        <button className="text-red-500 hover:text-red-700 px-3 py-1 border border-red-200 rounded text-sm hover:bg-red-50" onClick={() => deleteProduct(p.id)}>삭제</button>
                     </div>
                   </div>
                 ))}
@@ -234,19 +309,27 @@ export const AdminDashboard: React.FC = () => {
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-navy">도입 사례 관리</h2>
-                <button className="bg-skyTeal text-white px-4 py-2 rounded text-sm hover:bg-deepTeal" onClick={() => alert("데모 버전: 수정/삭제 기능만 테스트 가능합니다.")}>+ 사례 추가</button>
+                <button 
+                    className="bg-skyTeal text-white px-4 py-2 rounded text-sm hover:bg-deepTeal font-bold" 
+                    onClick={() => openCaseModal()}
+                >
+                    + 사례 추가
+                </button>
               </div>
               <div className="grid gap-4">
                 {cases.map(c => (
-                  <div key={c.id} className="border p-4 rounded flex items-center justify-between">
+                  <div key={c.id} className="border p-4 rounded flex items-center justify-between hover:bg-gray-50">
                     <div className="flex items-center gap-4">
-                        <img src={c.image} alt={c.storeName} className="w-16 h-16 object-cover rounded" />
+                        <img src={c.image} alt={c.storeName} className="w-16 h-16 object-cover rounded bg-gray-100" />
                         <div>
                             <h4 className="font-bold">{c.storeName}</h4>
                             <p className="text-sm text-gray-500">{c.productUsed} / {c.region}</p>
                         </div>
                     </div>
-                    <button className="text-red-500 hover:text-red-700" onClick={() => deleteCase(c.id)}>삭제</button>
+                    <div className="flex gap-2">
+                        <button className="text-gray-500 hover:text-navy px-3 py-1 border rounded text-sm" onClick={() => openCaseModal(c)}>수정</button>
+                        <button className="text-red-500 hover:text-red-700 px-3 py-1 border border-red-200 rounded text-sm hover:bg-red-50" onClick={() => deleteCase(c.id)}>삭제</button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -258,34 +341,32 @@ export const AdminDashboard: React.FC = () => {
             <div>
               <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold text-navy">상담 신청 내역</h2>
-                  <button className="text-sm text-gray-500 underline" onClick={fetchData}>새로고침</button>
+                  <button className="text-sm text-gray-500 underline hover:text-navy" onClick={fetchData}>새로고침</button>
               </div>
               
-              {/* Analytics Chart */}
-              <div className="bg-gray-50 p-6 rounded-xl mb-8">
+              <div className="bg-gray-50 p-6 rounded-xl mb-8 border border-gray-100">
                   <h3 className="text-sm font-bold text-gray-500 uppercase mb-4">최근 상담 신청 추이</h3>
                   <div className="h-48 w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={leads.slice(0, 7).map(l => ({ name: l.date, count: 1 }))}> 
-                              <XAxis dataKey="name" fontSize={12} />
+                          <BarChart data={leads.slice(0, 10).reverse().map(l => ({ name: l.date.slice(5), count: 1 }))}> 
+                              <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                               <YAxis hide />
-                              <Tooltip />
-                              <Bar dataKey="count" fill="#296374" radius={[4, 4, 0, 0]} />
+                              <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '8px' }} />
+                              <Bar dataKey="count" fill="#296374" radius={[4, 4, 4, 4]} barSize={20} />
                           </BarChart>
                       </ResponsiveContainer>
                   </div>
               </div>
 
-              {/* Table */}
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto border rounded-lg">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-gray-100 text-gray-600 text-sm">
-                      <th className="p-3">신청일</th>
-                      <th className="p-3">매장명</th>
-                      <th className="p-3">연락처</th>
-                      <th className="p-3">희망일시</th>
-                      <th className="p-3">상태</th>
+                    <tr className="bg-gray-50 text-gray-600 text-sm border-b">
+                      <th className="p-4 font-medium">신청일</th>
+                      <th className="p-4 font-medium">매장명</th>
+                      <th className="p-4 font-medium">연락처</th>
+                      <th className="p-4 font-medium">희망일시</th>
+                      <th className="p-4 font-medium">상태</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -293,12 +374,12 @@ export const AdminDashboard: React.FC = () => {
                         <tr><td colSpan={5} className="p-8 text-center text-gray-400">아직 상담 내역이 없습니다.</td></tr>
                     ) : (
                         leads.map(lead => (
-                        <tr key={lead.id} className="border-b hover:bg-gray-50 text-sm">
-                            <td className="p-3 text-gray-500">{new Date(lead.createdAt).toLocaleDateString()}</td>
-                            <td className="p-3 font-bold text-navy">{lead.storeName}</td>
-                            <td className="p-3">{lead.phone}</td>
-                            <td className="p-3">{lead.date} {lead.time}</td>
-                            <td className="p-3"><span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">접수완료</span></td>
+                        <tr key={lead.id} className="border-b hover:bg-gray-50 text-sm last:border-0 transition-colors">
+                            <td className="p-4 text-gray-500">{new Date(lead.createdAt).toLocaleDateString()}</td>
+                            <td className="p-4 font-bold text-navy">{lead.storeName}</td>
+                            <td className="p-4 font-mono text-gray-600">{lead.phone}</td>
+                            <td className="p-4 text-gray-600">{lead.date} {lead.time}</td>
+                            <td className="p-4"><span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">접수완료</span></td>
                         </tr>
                         ))
                     )}
@@ -307,9 +388,123 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
           )}
-
         </main>
       </div>
+
+      {/* Product Modal */}
+      {isProductModalOpen && editingProduct && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-fadeIn">
+                <div className="p-6 border-b flex justify-between items-center sticky top-0 bg-white z-10">
+                    <h3 className="text-xl font-bold text-navy">{editingProduct.id ? '상품 수정' : '새 상품 추가'}</h3>
+                    <button onClick={() => setIsProductModalOpen(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+                </div>
+                <div className="p-6 space-y-5">
+                    <div>
+                        <label className="block text-sm font-bold mb-1 text-gray-700">상품명</label>
+                        <input className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} placeholder="예: KT 하이오더" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold mb-1 text-gray-700">요약 설명</label>
+                        <input className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none" value={editingProduct.summary} onChange={e => setEditingProduct({...editingProduct, summary: e.target.value})} placeholder="리스트에 노출될 짧은 설명" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold mb-1 text-gray-700">상세 설명</label>
+                        <textarea className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none h-32" value={editingProduct.description} onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} placeholder="상세 페이지 내용" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold mb-2 text-gray-700">상품 이미지</label>
+                        <div className="flex flex-col sm:flex-row items-start gap-4 p-4 border rounded-lg bg-gray-50">
+                            {editingProduct.image ? (
+                                <img src={editingProduct.image} alt="Preview" className="w-full sm:w-40 h-32 object-cover rounded-lg bg-white shadow-sm" />
+                            ) : (
+                                <div className="w-full sm:w-40 h-32 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-sm">이미지 없음</div>
+                            )}
+                            <div className="flex-1">
+                                <label className={`inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${isUploading ? 'bg-gray-400' : 'bg-navy hover:bg-navy-light'} cursor-pointer transition-colors w-full sm:w-auto`}>
+                                    {isUploading ? <IconSpinner className="w-4 h-4 mr-2" /> : null}
+                                    {isUploading ? '업로드 중...' : '이미지 업로드'}
+                                    <input type="file" className="hidden" accept="image/*" disabled={isUploading} onChange={async (e) => {
+                                        const url = await handleImageUpload(e);
+                                        if (url) setEditingProduct({...editingProduct, image: url});
+                                    }} />
+                                </label>
+                                <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                                  권장 사이즈: 600x400px 이상<br/>
+                                  지원 형식: JPG, PNG, WEBP
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="p-6 border-t bg-gray-50 flex justify-end gap-3 rounded-b-xl">
+                    <button onClick={() => setIsProductModalOpen(false)} className="px-5 py-2.5 text-gray-600 hover:bg-gray-200 rounded-lg font-medium transition-colors">취소</button>
+                    <button onClick={saveProduct} className="px-5 py-2.5 bg-navy text-white rounded-lg font-bold hover:bg-navy-light shadow-md transition-all transform active:scale-95">저장하기</button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Case Modal */}
+      {isCaseModalOpen && editingCase && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-fadeIn">
+                <div className="p-6 border-b flex justify-between items-center sticky top-0 bg-white z-10">
+                    <h3 className="text-xl font-bold text-navy">{editingCase.id ? '도입사례 수정' : '새 사례 추가'}</h3>
+                    <button onClick={() => setIsCaseModalOpen(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+                </div>
+                <div className="p-6 space-y-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-bold mb-1 text-gray-700">매장명</label>
+                            <input className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none" value={editingCase.storeName} onChange={e => setEditingCase({...editingCase, storeName: e.target.value})} placeholder="예: 강서본점" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold mb-1 text-gray-700">지역</label>
+                            <input className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none" value={editingCase.region} onChange={e => setEditingCase({...editingCase, region: e.target.value})} placeholder="예: 서울" />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold mb-1 text-gray-700">도입 상품</label>
+                        <input className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none" value={editingCase.productUsed} onChange={e => setEditingCase({...editingCase, productUsed: e.target.value})} placeholder="예: 하이오더 + 서빙로봇" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold mb-1 text-gray-700">인터뷰/내용</label>
+                        <textarea className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none h-32" value={editingCase.content} onChange={e => setEditingCase({...editingCase, content: e.target.value})} placeholder="점주님 인터뷰 내용 등" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold mb-2 text-gray-700">사례 이미지</label>
+                        <div className="flex flex-col sm:flex-row items-start gap-4 p-4 border rounded-lg bg-gray-50">
+                            {editingCase.image ? (
+                                <img src={editingCase.image} alt="Preview" className="w-full sm:w-40 h-32 object-cover rounded-lg bg-white shadow-sm" />
+                            ) : (
+                                <div className="w-full sm:w-40 h-32 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-sm">이미지 없음</div>
+                            )}
+                            <div className="flex-1">
+                                <label className={`inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${isUploading ? 'bg-gray-400' : 'bg-navy hover:bg-navy-light'} cursor-pointer transition-colors w-full sm:w-auto`}>
+                                    {isUploading ? <IconSpinner className="w-4 h-4 mr-2" /> : null}
+                                    {isUploading ? '업로드 중...' : '이미지 업로드'}
+                                    <input type="file" className="hidden" accept="image/*" disabled={isUploading} onChange={async (e) => {
+                                        const url = await handleImageUpload(e);
+                                        if (url) setEditingCase({...editingCase, image: url});
+                                    }} />
+                                </label>
+                                <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                                  권장 사이즈: 600x400px 이상<br/>
+                                  매장 전경이나 설치된 모습이 잘 나온 사진을 권장합니다.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="p-6 border-t bg-gray-50 flex justify-end gap-3 rounded-b-xl">
+                    <button onClick={() => setIsCaseModalOpen(false)} className="px-5 py-2.5 text-gray-600 hover:bg-gray-200 rounded-lg font-medium transition-colors">취소</button>
+                    <button onClick={saveCase} className="px-5 py-2.5 bg-navy text-white rounded-lg font-bold hover:bg-navy-light shadow-md transition-all transform active:scale-95">저장하기</button>
+                </div>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 };
