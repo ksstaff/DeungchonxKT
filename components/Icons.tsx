@@ -22,6 +22,18 @@ export const IconArrowRight = ({ className }: { className?: string }) => (
   </svg>
 );
 
+export const IconArrowUp = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+  </svg>
+);
+
+export const IconArrowDown = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+  </svg>
+);
+
 export const IconKakao = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d="M12 3C7.58 3 4 5.79 4 9.24C4 11.13 5.08 12.82 6.78 13.92C6.54 14.81 6.07 16.89 6.01 17.16C5.97 17.38 6.22 17.5 6.4 17.38C7.56 16.68 9.17 15.54 9.88 15.03C10.55 15.13 11.26 15.18 12 15.18C16.42 15.18 20 12.39 20 8.94C20 5.49 16.42 3 12 3Z" />

@@ -4,6 +4,7 @@ export interface Product {
   summary: string;
   description: string; // Full content
   image: string;
+  orderIndex?: number;
 }
 
 export interface CaseStudy {
@@ -13,6 +14,7 @@ export interface CaseStudy {
   productUsed: string;
   image: string;
   content: string;
+  orderIndex?: number;
 }
 
 export interface Lead {
@@ -42,4 +44,5 @@ export enum AdminTab {
   PRODUCTS = 'PRODUCTS',
   CASES = 'CASES',
   LEADS = 'LEADS',
+  FOOTER = 'FOOTER',
 }

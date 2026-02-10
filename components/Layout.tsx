@@ -1,13 +1,21 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { IconAdmin } from './Icons';
 import { FloatingButtons } from './FloatingButtons';
+import { db } from '../services/db';
+import { FooterConfig } from '../types';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const [footerConfig, setFooterConfig] = useState<FooterConfig | null>(null);
+
+  useEffect(() => {
+    db.getFooterConfig().then(setFooterConfig);
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen font-sans text-gray-800">
       {/* Navigation */}
@@ -43,14 +51,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div>
               <h3 className="text-white text-lg font-bold mb-4">등촌샤브칼국수 x KT 공식 파트너십</h3>
               <p className="mb-2">본 프로모션 사이트는 등촌샤브칼국수 가맹점주님을 위한 공식 안내 페이지입니다.</p>
-              <p>KT 기업서비스 공식 가입 센터</p>
+              <p>{footerConfig?.contactInfo || 'KT 기업서비스 공식 가입 센터 | 문의: 1551-8891'}</p>
             </div>
             <div className="flex flex-col md:items-end">
               <Link to="/admin/login" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors mb-4">
                 <IconAdmin className="w-4 h-4" />
                 관리자 로그인
               </Link>
-              <p className="text-xs">© 2024 KT Corp. All rights reserved.</p>
+              <p className="text-xs">{footerConfig?.copyright || '© 2024 KT Corp. All rights reserved.'}</p>
             </div>
           </div>
         </div>

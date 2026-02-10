@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../services/db';
-import { AdminTab, HeroConfig, Product, CaseStudy, Lead } from '../types';
-import { IconSpinner } from '../components/Icons';
+import { AdminTab, HeroConfig, Product, CaseStudy, Lead, FooterConfig } from '../types';
+import { IconSpinner, IconArrowUp, IconArrowDown } from '../components/Icons';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export const AdminDashboard: React.FC = () => {
@@ -13,6 +13,7 @@ export const AdminDashboard: React.FC = () => {
 
   // Data States
   const [heroConfig, setHeroConfig] = useState<HeroConfig | null>(null);
+  const [footerConfig, setFooterConfig] = useState<FooterConfig | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [cases, setCases] = useState<CaseStudy[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -35,13 +36,15 @@ export const AdminDashboard: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [h, p, c, l] = await Promise.all([
+      const [h, f, p, c, l] = await Promise.all([
         db.getHeroConfig(),
+        db.getFooterConfig(),
         db.getProducts(),
         db.getCases(),
         db.getLeads(),
       ]);
       setHeroConfig(h);
+      setFooterConfig(f);
       setProducts(p);
       setCases(c);
       setLeads(l);
@@ -64,11 +67,9 @@ export const AdminDashboard: React.FC = () => {
         const url = await db.uploadImage(file);
         return url;
     } catch (error) {
-        alert('이미지 업로드 실패: ' + (error as any).message);
         return null;
     } finally {
         setIsUploading(false);
-        // Reset input value to allow uploading same file again if needed
         e.target.value = '';
     }
   };
@@ -77,7 +78,15 @@ export const AdminDashboard: React.FC = () => {
   const saveHero = async () => {
     if (heroConfig) {
       await db.updateHeroConfig(heroConfig);
-      alert('변경사항이 저장/동기화 되었습니다.');
+      alert('변경사항이 저장되었습니다.');
+    }
+  };
+
+  // --- Footer Handlers ---
+  const saveFooter = async () => {
+    if (footerConfig) {
+        await db.updateFooterConfig(footerConfig);
+        alert('푸터 설정이 저장되었습니다.');
     }
   };
 
@@ -86,7 +95,6 @@ export const AdminDashboard: React.FC = () => {
     if (product) {
         setEditingProduct({ ...product });
     } else {
-        // New Product
         setEditingProduct({
             id: '',
             name: '',
@@ -100,15 +108,11 @@ export const AdminDashboard: React.FC = () => {
 
   const saveProduct = async () => {
     if (!editingProduct) return;
-    
-    // Validate
     if (!editingProduct.name || !editingProduct.image) {
         alert('상품명과 이미지는 필수입니다.');
         return;
     }
-
     const p = { ...editingProduct };
-    // Generate ID if empty
     if (!p.id) p.id = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
 
     await db.saveProduct(p);
@@ -122,6 +126,19 @@ export const AdminDashboard: React.FC = () => {
         await db.deleteProduct(id);
         fetchData();
     }
+  };
+
+  const moveProduct = async (index: number, direction: 'up' | 'down') => {
+    const newProducts = [...products];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+
+    if (targetIndex < 0 || targetIndex >= newProducts.length) return;
+
+    // Swap
+    [newProducts[index], newProducts[targetIndex]] = [newProducts[targetIndex], newProducts[index]];
+    
+    setProducts(newProducts); // Optimistic UI update
+    await db.updateProductOrder(newProducts);
   };
 
   // --- Case Handlers ---
@@ -143,12 +160,10 @@ export const AdminDashboard: React.FC = () => {
 
   const saveCase = async () => {
     if (!editingCase) return;
-
     if (!editingCase.storeName || !editingCase.image) {
         alert('매장명과 이미지는 필수입니다.');
         return;
     }
-
     const c = { ...editingCase };
     if (!c.id) c.id = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
 
@@ -165,11 +180,23 @@ export const AdminDashboard: React.FC = () => {
       }
   };
 
+  const moveCase = async (index: number, direction: 'up' | 'down') => {
+    const newCases = [...cases];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+
+    if (targetIndex < 0 || targetIndex >= newCases.length) return;
+
+    // Swap
+    [newCases[index], newCases[targetIndex]] = [newCases[targetIndex], newCases[index]];
+    
+    setCases(newCases);
+    await db.updateCaseOrder(newCases);
+  };
+
   if (isLoading) return <div className="flex h-screen items-center justify-center"><IconSpinner className="w-8 h-8 text-navy" /></div>;
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      {/* Header */}
       <header className="bg-navy text-white shadow-md">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -180,7 +207,6 @@ export const AdminDashboard: React.FC = () => {
       </header>
 
       <div className="container mx-auto px-4 py-8 flex-grow flex flex-col md:flex-row gap-6">
-        {/* Sidebar Nav */}
         <aside className="w-full md:w-64 bg-white rounded-lg shadow-sm p-4 h-fit">
           <nav className="space-y-2">
             {[
@@ -188,6 +214,7 @@ export const AdminDashboard: React.FC = () => {
               { id: AdminTab.HERO, label: '히어로 관리' },
               { id: AdminTab.PRODUCTS, label: '상품 관리' },
               { id: AdminTab.CASES, label: '도입사례 관리' },
+              { id: AdminTab.FOOTER, label: '푸터 관리' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -202,7 +229,6 @@ export const AdminDashboard: React.FC = () => {
           </nav>
         </aside>
 
-        {/* Content Area */}
         <main className="flex-1 bg-white rounded-lg shadow-sm p-6 overflow-hidden">
           
           {/* HERO TAB */}
@@ -210,19 +236,11 @@ export const AdminDashboard: React.FC = () => {
             <div className="space-y-6">
               <div className="flex justify-between items-center border-b pb-4">
                   <h2 className="text-2xl font-bold text-navy">히어로 섹션 관리</h2>
-                  <button onClick={saveHero} className="bg-ktRed text-white px-6 py-2 rounded font-bold hover:bg-red-600 shadow-md">
-                    변경사항 저장하기
-                  </button>
+                  <button onClick={saveHero} className="bg-ktRed text-white px-6 py-2 rounded font-bold hover:bg-red-600 shadow-md">저장하기</button>
               </div>
-              
               <div>
-                <label className="block text-sm font-bold mb-2">헤드라인 (줄바꿈 가능)</label>
-                <textarea 
-                  className="w-full border rounded p-2" 
-                  rows={3}
-                  value={heroConfig.headline}
-                  onChange={e => setHeroConfig({...heroConfig, headline: e.target.value})}
-                />
+                <label className="block text-sm font-bold mb-2">헤드라인</label>
+                <textarea className="w-full border rounded p-2" rows={3} value={heroConfig.headline} onChange={e => setHeroConfig({...heroConfig, headline: e.target.value})} />
               </div>
               <div>
                 <label className="block text-sm font-bold mb-2">메인 이미지</label>
@@ -230,13 +248,8 @@ export const AdminDashboard: React.FC = () => {
                     {heroConfig.imageUrl && <img src={heroConfig.imageUrl} alt="Preview" className="h-32 object-cover rounded border" />}
                     <label className="cursor-pointer bg-gray-200 px-4 py-2 rounded hover:bg-gray-300 text-sm font-medium h-fit flex items-center gap-2">
                         {isUploading ? <IconSpinner className="w-4 h-4" /> : null}
-                        {isUploading ? '업로드 중...' : '이미지 변경'}
-                        <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            disabled={isUploading}
-                            onChange={async (e) => {
+                        {isUploading ? '업로드 중' : '이미지 변경'}
+                        <input type="file" accept="image/*" className="hidden" disabled={isUploading} onChange={async (e) => {
                                 const url = await handleImageUpload(e);
                                 if (url) setHeroConfig({...heroConfig, imageUrl: url});
                             }}
@@ -246,22 +259,12 @@ export const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-bold mb-2">배지 문구</label>
-                <input 
-                  type="text" 
-                  className="w-full border rounded p-2" 
-                  value={heroConfig.badgeText}
-                  onChange={e => setHeroConfig({...heroConfig, badgeText: e.target.value})}
-                />
+                <input type="text" className="w-full border rounded p-2" value={heroConfig.badgeText} onChange={e => setHeroConfig({...heroConfig, badgeText: e.target.value})} />
               </div>
               <div>
-                <label className="block text-sm font-bold mb-2">혜택 목록 (3개)</label>
+                <label className="block text-sm font-bold mb-2">혜택 목록</label>
                 {heroConfig.benefits.map((benefit, idx) => (
-                  <input 
-                    key={idx}
-                    type="text" 
-                    className="w-full border rounded p-2 mb-2" 
-                    value={benefit}
-                    onChange={e => {
+                  <input key={idx} type="text" className="w-full border rounded p-2 mb-2" value={benefit} onChange={e => {
                         const newBenefits = [...heroConfig.benefits];
                         newBenefits[idx] = e.target.value;
                         setHeroConfig({...heroConfig, benefits: newBenefits});
@@ -277,25 +280,28 @@ export const AdminDashboard: React.FC = () => {
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-navy">상품 관리</h2>
-                <button 
-                    className="bg-skyTeal text-white px-4 py-2 rounded text-sm hover:bg-deepTeal font-bold"
-                    onClick={() => openProductModal()}
-                >
-                    + 상품 추가
-                </button>
+                <button className="bg-skyTeal text-white px-4 py-2 rounded text-sm hover:bg-deepTeal font-bold" onClick={() => openProductModal()}>+ 상품 추가</button>
               </div>
               <div className="grid gap-4">
-                {products.map(p => (
-                  <div key={p.id} className="border p-4 rounded flex items-center justify-between hover:bg-gray-50">
+                {products.map((p, idx) => (
+                  <div key={p.id} className="border p-4 rounded flex items-center justify-between hover:bg-gray-50 transition-colors">
                     <div className="flex items-center gap-4">
-                      <img src={p.image} alt={p.name} className="w-16 h-16 object-cover rounded bg-gray-100" />
+                      <div className="flex flex-col gap-1 mr-2">
+                          <button onClick={() => moveProduct(idx, 'up')} disabled={idx === 0} className="p-1 hover:bg-gray-200 rounded disabled:opacity-30 text-gray-500">
+                             <IconArrowUp className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => moveProduct(idx, 'down')} disabled={idx === products.length - 1} className="p-1 hover:bg-gray-200 rounded disabled:opacity-30 text-gray-500">
+                             <IconArrowDown className="w-4 h-4" />
+                          </button>
+                      </div>
+                      <img src={p.image} alt={p.name} className="w-16 h-16 object-cover rounded bg-gray-100 border border-gray-200" />
                       <div>
-                        <h4 className="font-bold">{p.name}</h4>
+                        <h4 className="font-bold text-navy">{p.name}</h4>
                         <p className="text-sm text-gray-500 truncate w-64">{p.summary}</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
-                        <button className="text-gray-500 hover:text-navy px-3 py-1 border rounded text-sm" onClick={() => openProductModal(p)}>수정</button>
+                        <button className="text-gray-500 hover:text-navy px-3 py-1 border rounded text-sm hover:bg-white" onClick={() => openProductModal(p)}>수정</button>
                         <button className="text-red-500 hover:text-red-700 px-3 py-1 border border-red-200 rounded text-sm hover:bg-red-50" onClick={() => deleteProduct(p.id)}>삭제</button>
                     </div>
                   </div>
@@ -309,25 +315,28 @@ export const AdminDashboard: React.FC = () => {
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-navy">도입 사례 관리</h2>
-                <button 
-                    className="bg-skyTeal text-white px-4 py-2 rounded text-sm hover:bg-deepTeal font-bold" 
-                    onClick={() => openCaseModal()}
-                >
-                    + 사례 추가
-                </button>
+                <button className="bg-skyTeal text-white px-4 py-2 rounded text-sm hover:bg-deepTeal font-bold" onClick={() => openCaseModal()}>+ 사례 추가</button>
               </div>
               <div className="grid gap-4">
-                {cases.map(c => (
-                  <div key={c.id} className="border p-4 rounded flex items-center justify-between hover:bg-gray-50">
+                {cases.map((c, idx) => (
+                  <div key={c.id} className="border p-4 rounded flex items-center justify-between hover:bg-gray-50 transition-colors">
                     <div className="flex items-center gap-4">
-                        <img src={c.image} alt={c.storeName} className="w-16 h-16 object-cover rounded bg-gray-100" />
+                        <div className="flex flex-col gap-1 mr-2">
+                          <button onClick={() => moveCase(idx, 'up')} disabled={idx === 0} className="p-1 hover:bg-gray-200 rounded disabled:opacity-30 text-gray-500">
+                             <IconArrowUp className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => moveCase(idx, 'down')} disabled={idx === cases.length - 1} className="p-1 hover:bg-gray-200 rounded disabled:opacity-30 text-gray-500">
+                             <IconArrowDown className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <img src={c.image} alt={c.storeName} className="w-16 h-16 object-cover rounded bg-gray-100 border border-gray-200" />
                         <div>
-                            <h4 className="font-bold">{c.storeName}</h4>
+                            <h4 className="font-bold text-navy">{c.storeName}</h4>
                             <p className="text-sm text-gray-500">{c.productUsed} / {c.region}</p>
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <button className="text-gray-500 hover:text-navy px-3 py-1 border rounded text-sm" onClick={() => openCaseModal(c)}>수정</button>
+                        <button className="text-gray-500 hover:text-navy px-3 py-1 border rounded text-sm hover:bg-white" onClick={() => openCaseModal(c)}>수정</button>
                         <button className="text-red-500 hover:text-red-700 px-3 py-1 border border-red-200 rounded text-sm hover:bg-red-50" onClick={() => deleteCase(c.id)}>삭제</button>
                     </div>
                   </div>
@@ -343,7 +352,6 @@ export const AdminDashboard: React.FC = () => {
                   <h2 className="text-2xl font-bold text-navy">상담 신청 내역</h2>
                   <button className="text-sm text-gray-500 underline hover:text-navy" onClick={fetchData}>새로고침</button>
               </div>
-              
               <div className="bg-gray-50 p-6 rounded-xl mb-8 border border-gray-100">
                   <h3 className="text-sm font-bold text-gray-500 uppercase mb-4">최근 상담 신청 추이</h3>
                   <div className="h-48 w-full">
@@ -357,7 +365,6 @@ export const AdminDashboard: React.FC = () => {
                       </ResponsiveContainer>
                   </div>
               </div>
-
               <div className="overflow-x-auto border rounded-lg">
                 <table className="w-full text-left border-collapse">
                   <thead>
@@ -388,6 +395,24 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* FOOTER TAB */}
+          {activeTab === AdminTab.FOOTER && footerConfig && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center border-b pb-4">
+                  <h2 className="text-2xl font-bold text-navy">푸터 관리</h2>
+                  <button onClick={saveFooter} className="bg-ktRed text-white px-6 py-2 rounded font-bold hover:bg-red-600 shadow-md">저장하기</button>
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-2">저작권 문구 (Copyright)</label>
+                <input type="text" className="w-full border rounded p-2 focus:ring-2 focus:ring-navy outline-none" value={footerConfig.copyright} onChange={e => setFooterConfig({...footerConfig, copyright: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-2">하단 연락처/안내 문구</label>
+                <input type="text" className="w-full border rounded p-2 focus:ring-2 focus:ring-navy outline-none" value={footerConfig.contactInfo} onChange={e => setFooterConfig({...footerConfig, contactInfo: e.target.value})} />
+              </div>
+            </div>
+          )}
         </main>
       </div>
 
@@ -402,15 +427,15 @@ export const AdminDashboard: React.FC = () => {
                 <div className="p-6 space-y-5">
                     <div>
                         <label className="block text-sm font-bold mb-1 text-gray-700">상품명</label>
-                        <input className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} placeholder="예: KT 하이오더" />
+                        <input className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} />
                     </div>
                     <div>
                         <label className="block text-sm font-bold mb-1 text-gray-700">요약 설명</label>
-                        <input className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none" value={editingProduct.summary} onChange={e => setEditingProduct({...editingProduct, summary: e.target.value})} placeholder="리스트에 노출될 짧은 설명" />
+                        <input className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none" value={editingProduct.summary} onChange={e => setEditingProduct({...editingProduct, summary: e.target.value})} />
                     </div>
                     <div>
                         <label className="block text-sm font-bold mb-1 text-gray-700">상세 설명</label>
-                        <textarea className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none h-32" value={editingProduct.description} onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} placeholder="상세 페이지 내용" />
+                        <textarea className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none h-32" value={editingProduct.description} onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} />
                     </div>
                     <div>
                         <label className="block text-sm font-bold mb-2 text-gray-700">상품 이미지</label>
@@ -423,16 +448,12 @@ export const AdminDashboard: React.FC = () => {
                             <div className="flex-1">
                                 <label className={`inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${isUploading ? 'bg-gray-400' : 'bg-navy hover:bg-navy-light'} cursor-pointer transition-colors w-full sm:w-auto`}>
                                     {isUploading ? <IconSpinner className="w-4 h-4 mr-2" /> : null}
-                                    {isUploading ? '업로드 중...' : '이미지 업로드'}
+                                    {isUploading ? '업로드 중' : '이미지 업로드'}
                                     <input type="file" className="hidden" accept="image/*" disabled={isUploading} onChange={async (e) => {
                                         const url = await handleImageUpload(e);
                                         if (url) setEditingProduct({...editingProduct, image: url});
                                     }} />
                                 </label>
-                                <p className="text-xs text-gray-500 mt-2 leading-relaxed">
-                                  권장 사이즈: 600x400px 이상<br/>
-                                  지원 형식: JPG, PNG, WEBP
-                                </p>
                             </div>
                         </div>
                     </div>
@@ -457,20 +478,20 @@ export const AdminDashboard: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-bold mb-1 text-gray-700">매장명</label>
-                            <input className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none" value={editingCase.storeName} onChange={e => setEditingCase({...editingCase, storeName: e.target.value})} placeholder="예: 강서본점" />
+                            <input className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none" value={editingCase.storeName} onChange={e => setEditingCase({...editingCase, storeName: e.target.value})} />
                         </div>
                         <div>
                             <label className="block text-sm font-bold mb-1 text-gray-700">지역</label>
-                            <input className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none" value={editingCase.region} onChange={e => setEditingCase({...editingCase, region: e.target.value})} placeholder="예: 서울" />
+                            <input className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none" value={editingCase.region} onChange={e => setEditingCase({...editingCase, region: e.target.value})} />
                         </div>
                     </div>
                     <div>
                         <label className="block text-sm font-bold mb-1 text-gray-700">도입 상품</label>
-                        <input className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none" value={editingCase.productUsed} onChange={e => setEditingCase({...editingCase, productUsed: e.target.value})} placeholder="예: 하이오더 + 서빙로봇" />
+                        <input className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none" value={editingCase.productUsed} onChange={e => setEditingCase({...editingCase, productUsed: e.target.value})} />
                     </div>
                     <div>
                         <label className="block text-sm font-bold mb-1 text-gray-700">인터뷰/내용</label>
-                        <textarea className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none h-32" value={editingCase.content} onChange={e => setEditingCase({...editingCase, content: e.target.value})} placeholder="점주님 인터뷰 내용 등" />
+                        <textarea className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent outline-none h-32" value={editingCase.content} onChange={e => setEditingCase({...editingCase, content: e.target.value})} />
                     </div>
                     <div>
                         <label className="block text-sm font-bold mb-2 text-gray-700">사례 이미지</label>
@@ -483,16 +504,12 @@ export const AdminDashboard: React.FC = () => {
                             <div className="flex-1">
                                 <label className={`inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${isUploading ? 'bg-gray-400' : 'bg-navy hover:bg-navy-light'} cursor-pointer transition-colors w-full sm:w-auto`}>
                                     {isUploading ? <IconSpinner className="w-4 h-4 mr-2" /> : null}
-                                    {isUploading ? '업로드 중...' : '이미지 업로드'}
+                                    {isUploading ? '업로드 중' : '이미지 업로드'}
                                     <input type="file" className="hidden" accept="image/*" disabled={isUploading} onChange={async (e) => {
                                         const url = await handleImageUpload(e);
                                         if (url) setEditingCase({...editingCase, image: url});
                                     }} />
                                 </label>
-                                <p className="text-xs text-gray-500 mt-2 leading-relaxed">
-                                  권장 사이즈: 600x400px 이상<br/>
-                                  매장 전경이나 설치된 모습이 잘 나온 사진을 권장합니다.
-                                </p>
                             </div>
                         </div>
                     </div>
