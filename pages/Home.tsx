@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { HeroConfig, Product, CaseStudy } from '../types';
 import { db } from '../services/db';
 import { IconCheck, IconArrowRight, IconSpinner } from '../components/Icons';
@@ -14,12 +14,47 @@ export const Home: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
+  const location = useLocation();
+
   useEffect(() => {
     db.initialize();
     db.getHeroConfig().then(setHeroConfig);
     db.getProducts().then(setProducts);
     db.getCases().then(setCases);
   }, []);
+
+  // Handle Scroll to Section based on Hash or Path
+  useEffect(() => {
+    const handleScroll = () => {
+        let targetId = '';
+        if (location.hash) {
+            targetId = location.hash.replace('#', '');
+        } else if (location.pathname === '/products') {
+            targetId = 'products';
+        } else if (location.pathname === '/cases') {
+            targetId = 'cases';
+        }
+
+        if (targetId) {
+            const elem = document.getElementById(targetId);
+            if (elem) {
+                // Add a small delay to ensure DOM is ready/layout settled
+                setTimeout(() => {
+                    const headerOffset = 80; // height of sticky header
+                    const elementPosition = elem.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.scrollY - headerOffset;
+            
+                    window.scrollTo({
+                        top: offsetPosition,
+                        behavior: "smooth"
+                    });
+                }, 100);
+            }
+        }
+    };
+
+    handleScroll();
+  }, [location, heroConfig, products]); // Re-run when location changes or data loads
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,7 +110,7 @@ export const Home: React.FC = () => {
       </section>
 
       {/* 2. Products Section */}
-      <section className="py-20 bg-white">
+      <section id="products" className="py-20 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <span className="text-deepTeal font-bold tracking-widest text-sm uppercase mb-2 block">Our Solutions</span>
@@ -102,7 +137,7 @@ export const Home: React.FC = () => {
       </section>
 
       {/* 3. Case Studies Section (Infinite Loop) */}
-      <section className="py-20 bg-cream overflow-hidden">
+      <section id="cases" className="py-20 bg-cream overflow-hidden">
         <div className="container mx-auto px-4 mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-navy">성공적인 도입 사례</h2>
           <p className="text-slate-600 mt-4">이미 많은 점주님들이 경험하고 계십니다.</p>

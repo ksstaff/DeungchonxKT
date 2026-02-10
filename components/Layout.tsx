@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { IconAdmin } from './Icons';
 import { FloatingButtons } from './FloatingButtons';
 import { db } from '../services/db';
@@ -11,10 +11,15 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [footerConfig, setFooterConfig] = useState<FooterConfig | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     db.getFooterConfig().then(setFooterConfig);
   }, []);
+
+  const handleConsultationClick = () => {
+    navigate('/#consultation-form');
+  };
 
   return (
     <div className="flex flex-col min-h-screen font-sans text-gray-800">
@@ -27,10 +32,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </span>
           </Link>
           <div className="flex items-center gap-4">
-            <Link to="/products" className="hidden md:block text-gray-600 hover:text-navy font-medium">상품안내</Link>
-            <Link to="/cases" className="hidden md:block text-gray-600 hover:text-navy font-medium">도입사례</Link>
+            <Link to="/#products" className="hidden md:block text-gray-600 hover:text-navy font-medium">상품안내</Link>
+            <Link to="/#cases" className="hidden md:block text-gray-600 hover:text-navy font-medium">도입사례</Link>
             <button 
-              onClick={() => document.getElementById('consultation-form')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={handleConsultationClick}
               className="bg-navy text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-navy-light transition-colors"
             >
               상담신청
