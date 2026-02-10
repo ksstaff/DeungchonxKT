@@ -35,6 +35,8 @@ export interface HeroConfig {
 }
 
 export interface FooterConfig {
+  title: string;
+  description: string;
   copyright: string;
   contactInfo: string;
 }

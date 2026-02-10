@@ -55,7 +55,7 @@ export const AdminDashboard: React.FC = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('admin_auth');
-    navigate('/admin/login');
+    navigate('/');
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -403,6 +403,15 @@ export const AdminDashboard: React.FC = () => {
                   <h2 className="text-2xl font-bold text-navy">푸터 관리</h2>
                   <button onClick={saveFooter} className="bg-ktRed text-white px-6 py-2 rounded font-bold hover:bg-red-600 shadow-md">저장하기</button>
               </div>
+              <div>
+                <label className="block text-sm font-bold mb-2">상단 제목 (Title)</label>
+                <input type="text" className="w-full border rounded p-2 focus:ring-2 focus:ring-navy outline-none" value={footerConfig.title || ''} onChange={e => setFooterConfig({...footerConfig, title: e.target.value})} placeholder="예: 등촌샤브칼국수 x KT 공식 파트너십" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-2">상단 설명 (Description)</label>
+                <textarea className="w-full border rounded p-2 focus:ring-2 focus:ring-navy outline-none" rows={2} value={footerConfig.description || ''} onChange={e => setFooterConfig({...footerConfig, description: e.target.value})} placeholder="예: 본 프로모션 사이트는..." />
+              </div>
+              <div className="border-t my-4"></div>
               <div>
                 <label className="block text-sm font-bold mb-2">저작권 문구 (Copyright)</label>
                 <input type="text" className="w-full border rounded p-2 focus:ring-2 focus:ring-navy outline-none" value={footerConfig.copyright} onChange={e => setFooterConfig({...footerConfig, copyright: e.target.value})} />

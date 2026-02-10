@@ -63,6 +63,8 @@ const INITIAL_HERO: HeroConfig = {
 };
 
 const INITIAL_FOOTER: FooterConfig = {
+  title: '등촌샤브칼국수 x KT 공식 파트너십',
+  description: '본 프로모션 사이트는 등촌샤브칼국수 가맹점주님을 위한 공식 안내 페이지입니다.',
   copyright: '© 2024 KT Corp. All rights reserved.',
   contactInfo: 'KT 기업서비스 공식 가입 센터 | 문의: 1551-8891'
 };
@@ -248,12 +250,18 @@ export const db = {
 
   // --- Footer Config ---
   getFooterConfig: async (): Promise<FooterConfig> => {
+    let fetchedConfig: Partial<FooterConfig> = {};
+
     if (supabase) {
         const { data } = await supabase.from('config').select('value').eq('key', 'footer').single();
-        if (data) return data.value;
+        if (data) fetchedConfig = data.value;
+    } else {
+        const data = localStorage.getItem(STORAGE_KEYS.FOOTER);
+        if (data) fetchedConfig = JSON.parse(data);
     }
-    const data = localStorage.getItem(STORAGE_KEYS.FOOTER);
-    return data ? JSON.parse(data) : INITIAL_FOOTER;
+    
+    // Merge with INITIAL_FOOTER to ensure all fields exist (especially new ones like title/description)
+    return { ...INITIAL_FOOTER, ...fetchedConfig };
   },
   updateFooterConfig: async (config: FooterConfig): Promise<void> => {
     if (supabase) {

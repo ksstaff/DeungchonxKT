@@ -49,8 +49,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div>
-              <h3 className="text-white text-lg font-bold mb-4">등촌샤브칼국수 x KT 공식 파트너십</h3>
-              <p className="mb-2">본 프로모션 사이트는 등촌샤브칼국수 가맹점주님을 위한 공식 안내 페이지입니다.</p>
+              <h3 className="text-white text-lg font-bold mb-4">{footerConfig?.title || '등촌샤브칼국수 x KT 공식 파트너십'}</h3>
+              <p className="mb-2 whitespace-pre-line">{footerConfig?.description || '본 프로모션 사이트는 등촌샤브칼국수 가맹점주님을 위한 공식 안내 페이지입니다.'}</p>
               <p>{footerConfig?.contactInfo || 'KT 기업서비스 공식 가입 센터 | 문의: 1551-8891'}</p>
             </div>
             <div className="flex flex-col md:items-end">
